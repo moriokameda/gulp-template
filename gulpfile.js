@@ -2,67 +2,58 @@
 
 const gulp = require('gulp'),
     sass = require('gulp-sass'),
-    babel = require('gulp-babel'),
+    uglify = require('gulp-uglify'),
     pug = require('gulp-pug'),
     pugPHPFilter = require('pug-php-filter'),
     rename = require('gulp-rename'),
     watch = require('gulp-watch'),
     plumber = require('gulp-plumber'),
-    runSequence = require('run-sequence'),
+    notify = require('gulp-notify'),
     browserSync = require('browser-sync').create();
 
-gulp.task('watch',['browserSync'], () => {
-    return watch('public/**/*.*', () => {
-        gulp.start('execution')
-    })
-});
 
-gulp.task('execution', (calback) => {
-    runSequence(
-        ['sass', 'pug', 'babel'],
-        'reload',
-        calback
-    )
-});
-
-gulp.task('browserSync', () => {
-    browserSync.init({
-        proxy: 'vccw.test'
-    });
-});
-
-gulp.task('reload', () => {
-    browserSync.reload();
-});
-
-gulp.task('sass', () => {
-    return gulp.src('src/sass/**/*.scss')
-        .pipe(plumber())
-        .pipe(sass())
-        .pipe(gulp.dest('public/css'));
-});
-
+gulp.task('default', ["browser-sync","watch"], () => {
+    browserSync.reload;
+})
+// pugをhtmlファイル化
 gulp.task('pug', () => {
-    let option = {
-        pretty: true,
-        filters: {
-            php: pugPHPFilter
-        }
-    }
-    return gulp.src('src/pug/**/*.pug')
-        .pipe(plumber())
-        .pipe(pug(option))
-        .pipe(rename({
-            extname: '.php'
+    return gulp
+        .src(['src/pug/**/*.pug','!src/pug/**/_*.pug'])
+        .pipe(pug({
+            pretty: true
         }))
-        .pipe(gulp.dest('public'));
-});
+        .pipe( gulp.dest('./public/'));
+})
+// sassをcssファイル化
+gulp.task('sass', () => {
+    return gulp
+        .src(['./src/sass/**/*.scss', '!./src/sass/**/_*.scss'])
+        .pipe(plumber({
+            errorHandler: notify.onError("Error: <%= error.message %>")
+        }))
+        .pipe(sass({
+                outputStyle: 'expanded'
+            })
+        )
+        .pipe(gulp.dest('./public/css'));
+})
+// jsをmin.js化
+gulp.task('js-minify', () => {
+    return gulp.src(['./src/js/*.js', '!./src/js/*.min.js'])
+        .pipe(uglify())
+        .pipe(rename({extname: '.min.js'}))
+        .pipe(gulp.dest('./public/js/'))
+})
 
-gulp.task('babel', () => {
-    return gulp.src('src/js/**/*.js')
-        .pipe(plumber())
-        .pipe(babel({
-            presets: ['env']
-        }))
-        .pipe(gulp.dest('public/js/'));
-});
+gulp.task('browser-sync', () => {
+    browserSync.init({
+        proxy: "http://localhost",
+        port: 3000,
+    })
+})
+// watch
+gulp.task('watch', () => {
+    gulp.watch('./src/sass/**/*.scss', gulp.task('sass'))
+    gulp.watch('./src/pug/**/*.pug', gulp.task('pug'))
+    gulp.watch('./src/js/*.js', gulp.task('js-minify'))
+})
